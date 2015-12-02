@@ -3,12 +3,59 @@
 #include "parsecpp.h"
 
 template <typename T>
+Parser<T> watch(const Parser<T> &p, const std::string &msg) {
+    return [=](Source *s) {
+        T ret;
+        try {
+            ret = p(s);
+        } catch (const std::string &e) {
+            std::cerr << msg << ":" << e << std::endl;
+            throw;
+        }
+        return ret;
+    };
+}
+
+template <typename T>
+Parser<T> log(const Parser<T> &p, const std::string &tag) {
+    return [=](Source *s) {
+        T ret = watch(p, tag)(s);
+        std::cerr << "<" << tag << ">" << ret << "</" << tag << ">" << std::endl;
+        return ret;
+    };
+}
+
+auto spc = char1(' ') || char1('\t') || char1('\n');
+template <typename T>
 Parser<T> read(const Parser<T> &p) {
-    return spaces >> p << spaces;
+    return many(spc) >> p << many(spc);
 }
 Parser<char> chr(char ch) { return read(char1(ch)); }
+Parser<std::string> opt(const Parser<std::string> &p) {
+    return tryp(p) || right<std::string>("");
+}
 
-auto symbol = letter + many(letter || digit);
+auto symbol = read(letter + many(letter || digit));
+auto num = many1(digit);
+
+auto var = symbol;
+Parser<std::string> str = [](Source *s) {
+    std::string ret;
+    spaces(s);
+    char1('"')(s);
+    for (;;) {
+        char ch = anyChar(s);
+        if (ch == '"') break;
+        ret += ch;
+        if (ch == '\\') ret += anyChar(s);
+    }
+    return "\"" + ret + "\"";
+};
+auto expr = tryp(var) || tryp(num) || str;
+Parser<std::string> call =
+    symbol + chr('(') + opt(expr + many(chr(',') + expr)) + chr(')');
+auto sentence = call + chr(';');
+auto body = many(log(sentence, "sentence"));
 
 struct Func {
     std::string name;
@@ -18,8 +65,11 @@ std::ostream &operator<<(std::ostream &cout, const Func &f) {
     cout << f.name << "()";
 }
 Parser<Func> func = [](Source *s) {
-    Func f = read(symbol)(s);
-    (chr('(') >> chr(')') >> chr('{') >> chr('}'))(s);
+    Func f = symbol(s);
+    (chr('(') >> chr(')'))(s);
+    chr('{')(s);
+    body(s);
+    chr('}')(s);
     return f;
 };
 

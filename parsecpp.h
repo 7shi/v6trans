@@ -174,6 +174,13 @@ Parser<T> tryp(const Parser<T> &p) {
 }
 
 template <typename T>
+Parser<T> right(const T &t) {
+    return [=](Source *s) {
+        return t;
+    };
+}
+
+template <typename T>
 Parser<T> left(const std::string &e) {
     return [=](Source *s) -> T {
         throw s->ex(e);
