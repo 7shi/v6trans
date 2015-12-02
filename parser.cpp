@@ -23,8 +23,11 @@ Parser<std::string> strl(const std::list<std::string> &list) {
 Parser<std::string> opt(const Parser<std::string> &p) {
     return tryp(p) || right("");
 }
+Parser<std::string> opt(const Parser<char> &p) {
+    return tryp(p + right("")) || right("");
+}
 
-auto sym = read(letter + many(letter || digit));
+auto sym = log(read(letter + many(letter || digit)), "sym");
 auto num = many1(digit);
 Parser<std::string> lstr = [](Source *s) {
     std::string ret;
@@ -37,13 +40,17 @@ Parser<std::string> lstr = [](Source *s) {
     }
     return "\"" + ret + "\"";
 };
-
+auto lchar = char1('\'') + opt(char1('\\')) + anyChar + char1('\'');
 auto type = strl({"int", "char"}) + many(chr('*'));
 
 extern Parser<std::string> expr0, sentence_;
 Parser<std::string> expr = [](Source *s) { return expr0(s); };
 Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
 
+auto ret = str("return") + right(" ") + expr;
+auto let = sym + strl({"=+", "=-", "=*", "=/", "=<<", "=>>", "="}) + expr;
+auto var = type + right(" ") + sym + chr(';');
+auto for_ = str("for") + chr('(') + let + chr(';') + expr + chr(';') + expr + chr(')') + sentence;
 
 Parser<std::string> varOrCall = [](Source *s) {
     auto sy = sym(s);
@@ -52,23 +59,22 @@ Parser<std::string> varOrCall = [](Source *s) {
     } catch (const std::string &) {
         return sy + opt(strl({"++", "--"}) || chr('[') + expr + chr(']'))(s);
     }
-    return sy + "(" + (opt(expr + many(chr(',') + expr)) + chr(')'))(s);
+    return sy + "(" + log((opt(expr + many(chr(',') + expr)) + chr(')')), "call")(s);
 };
-auto ret = str("return") + right(" ") + expr;
-auto let = sym + chr('=') + expr;
-auto var = type + right(" ") + sym + chr(';');
-auto for_ = str("for") +
-    chr('(') + let + chr(';') + expr + chr(';') + expr + chr(')') + sentence;
 
-auto factor = read(tryp(chr('(') + expr + chr(')')) || num || lstr || varOrCall);
-auto expr4 = factor + many(str("||") + factor);
-auto expr3 = expr4 + many(str("&&") + expr4);
-auto expr2 = expr3 + many(strl({"==", "!=", "<=", "<", ">=", ">"}) + expr3);
-auto expr1 = expr2 + many(strl({"*", "/"}) + expr2);
-Parser<std::string> expr0 = log(expr1 + many(strl({"+", "-"}) + expr1), "expr");
+auto factor = read(tryp(chr('(') + log(expr, "()") + chr(')')) || num || lstr || lchar || varOrCall);
+auto expr8 = factor + opt(chr('?') + expr + chr(':') + expr);
+auto expr7 = expr8 + many(strl({"&", "|"}) + expr8);
+auto expr6 = expr7 + many(str("||") + expr7);
+auto expr5 = expr6 + many(str("&&") + expr6);
+auto expr4 = expr5 + many(strl({"==", "!="}) + expr5);
+auto expr3 = expr4 + many(log(strl({"<=", "<", ">=", ">"}), "expr3") + expr4);
+auto expr2 = expr3 + many(strl({"*", "/"}) + expr3);
+auto expr1 = expr2 + many(strl({"+", "-"}) + expr2);
+Parser<std::string> expr0 = log(expr1 + many(log(strl({"<<", ">>"}), "<< >>") + expr1), "expr");
 
 Parser<std::string> sentence_ = chr('{') + many(sentence) + chr('}') ||
-    (tryp(ret) || tryp(for_) || tryp(let) || expr) + chr(';');
+    (tryp(ret) || tryp(let) || for_ || expr) + chr(';');
 
 struct Func {
     std::string name;
