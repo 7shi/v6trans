@@ -31,15 +31,16 @@ Parser<T> read(const Parser<T> &p) {
     return many(spc) >> p << many(spc);
 }
 Parser<char> chr(char ch) { return read(char1(ch)); }
+Parser<std::string> str(const std::string &s) { return read(string(s)); }
 Parser<std::string> opt(const Parser<std::string> &p) {
-    return tryp(p) || right<std::string>("");
+    return tryp(p) || right("");
 }
 
 auto symbol = read(letter + many(letter || digit));
 auto num = many1(digit);
 
 auto var = symbol;
-Parser<std::string> str = [](Source *s) {
+Parser<std::string> lstr = [](Source *s) {
     std::string ret;
     spaces(s);
     char1('"')(s);
@@ -51,10 +52,11 @@ Parser<std::string> str = [](Source *s) {
     }
     return "\"" + ret + "\"";
 };
-auto expr = tryp(var) || tryp(num) || str;
+auto expr = tryp(var) || tryp(num) || lstr;
 Parser<std::string> call =
     symbol + chr('(') + opt(expr + many(chr(',') + expr)) + chr(')');
-auto sentence = call + chr(';');
+auto ret = str("return") + right(" ") + expr;
+auto sentence = (tryp(call) || ret) + chr(';');
 auto body = many(log(sentence, "sentence"));
 
 struct Func {

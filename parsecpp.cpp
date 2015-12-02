@@ -46,6 +46,10 @@ Parser<std::string> many(const Parser<std::string> &p) {
     return many_(p);
 }
 
+Parser<std::string> right(const char *s) {
+    return right<std::string>(s);
+}
+
 Parser<char> left(const std::string &e) {
     return left<char>(e);
 }

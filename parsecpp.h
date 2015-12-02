@@ -179,6 +179,7 @@ Parser<T> right(const T &t) {
         return t;
     };
 }
+extern Parser<std::string> right(const char *);
 
 template <typename T>
 Parser<T> left(const std::string &e) {
