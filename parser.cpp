@@ -38,11 +38,9 @@ Parser<std::string> opt(const Parser<std::string> &p) {
 
 auto symbol = read(letter + many(letter || digit));
 auto num = many1(digit);
-
 auto var = symbol;
 Parser<std::string> lstr = [](Source *s) {
     std::string ret;
-    spaces(s);
     char1('"')(s);
     for (;;) {
         char ch = anyChar(s);
@@ -52,11 +50,21 @@ Parser<std::string> lstr = [](Source *s) {
     }
     return "\"" + ret + "\"";
 };
-auto expr = tryp(var) || tryp(num) || lstr;
+
+extern Parser<std::string> expr_;
+Parser<std::string> expr = [](Source *s) { return expr_(s); };
+
 Parser<std::string> call =
     symbol + chr('(') + opt(expr + many(chr(',') + expr)) + chr(')');
 auto ret = str("return") + right(" ") + expr;
-auto sentence = (tryp(call) || ret) + chr(';');
+
+auto factor = read(
+    tryp(chr('(') + expr + chr(')')) ||
+    tryp(call) || tryp(var) || tryp(num) || lstr);
+auto term = factor + many(chr('*') + factor || chr('/') + factor);
+Parser<std::string> expr_ = term + many(chr('+') + term || chr('-') + term);
+
+auto sentence = (tryp(ret) || expr) + chr(';');
 auto body = many(log(sentence, "sentence"));
 
 struct Func {
