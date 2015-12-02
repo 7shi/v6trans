@@ -6,11 +6,23 @@ template <typename T>
 Parser<T> read(const Parser<T> &p) {
     return spaces >> p << spaces;
 }
-
 Parser<char> chr(char ch) { return read(char1(ch)); }
 
 auto symbol = letter + many(letter || digit);
-auto func = read(symbol) + chr('(') + chr(')') + chr('{') + chr('}');
+
+struct Func {
+    std::string name;
+    Func(const std::string &name) : name(name) {}
+};
+std::ostream &operator<<(std::ostream &cout, const Func &f) {
+    cout << f.name << "()";
+}
+Parser<Func> func = [](Source *s) {
+    Func f = read(symbol)(s);
+    (chr('(') >> chr(')') >> chr('{') >> chr('}'))(s);
+    return f;
+};
+
 auto decls = many(func);
 
 int main(int argc, char *argv[]) {
