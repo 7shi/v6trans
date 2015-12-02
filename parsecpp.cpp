@@ -1,6 +1,6 @@
 #include "parsecpp.h"
 
-Source::Source(const char *s) : s(s), line(1), col(1) {}
+Source::Source(const char *s) : s(s), l(s), line(1), col(1) {}
 char Source::peek() {
     char ch = *s;
     if (!ch) throw ex("too short");
@@ -8,17 +8,38 @@ char Source::peek() {
 }
 void Source::next() {
     char ch = peek();
-    if (ch == '\n') {
-        ++line;
-        col = 0;
-    }
     ++s;
     ++col;
+    if (ch == '\n') {
+        l = s;
+        ++line;
+        col = 1;
+    }
 }
-std::string Source::ex(const std::string &e) {
+std::string Source::getLine() const {
+    std::ostringstream oss;
+    for (auto l = this->l; *l && *l != '\r' && *l != '\n'; ++l) {
+        oss << *l;
+    }
+    return oss.str();
+}
+std::string Source::showCol() const {
+    std::ostringstream oss;
+    for (int i = 1; i < col; ++i) oss << ' ';
+    oss << "^";
+    return oss.str();
+}
+std::string Source::ex(const std::string &e) const {
     std::ostringstream oss;
     oss << "[line " << line << ", col " << col << "] " << e;
     if (*s) oss << ": '" << *s << "'";
+    return oss.str();
+}
+std::string Source::ex2(const std::string &e) const {
+    std::ostringstream oss;
+    oss << "[line " << line << ", col " << col << "] " << e;
+    if (*s) oss << ": '" << *s << "'" << std::endl;
+    oss << getLine() << std::endl << showCol() << std::endl;
     return oss.str();
 }
 bool Source::operator==(const Source &src) const {
@@ -27,7 +48,6 @@ bool Source::operator==(const Source &src) const {
 bool Source::operator!=(const Source &src) const {
     return !(*this == src);
 }
-
 bool Source::eof() const {
     return !*s;
 }

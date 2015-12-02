@@ -24,13 +24,16 @@ std::ostream &operator<<(std::ostream &cout, const std::list<T> &list) {
 }
 
 class Source {
-    const char *s;
+    const char *s, *l;
     int line, col;
 public:
     Source(const char *s);
     char peek();
     void next();
-    std::string ex(const std::string &e);
+    std::string getLine() const;
+    std::string showCol() const;
+    std::string ex(const std::string &e) const;
+    std::string ex2(const std::string &e) const;
     bool operator==(const Source &src) const;
     bool operator!=(const Source &src) const;
     bool eof() const;
@@ -223,6 +226,7 @@ Parser<T> watch(const Parser<T> &p, const std::string &msg) {
             ret = p(s);
         } catch (const std::string &e) {
             std::cerr << msg << ":" << e << std::endl;
+            std::cerr << s->getLine() << std::endl << s->showCol() << std::endl;
             throw;
         }
         return ret;
