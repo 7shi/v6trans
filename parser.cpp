@@ -64,12 +64,12 @@ auto decls = many(func);
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "usage: %s source.c\n", argv[0]);
+        std::cerr << "usage: " << argv[0] << " source.c" << std::endl;
         return 1;
     }
     FILE *f = fopen(argv[1], "rb");
     if (!f) {
-        fprintf(stderr, "can not open: %s\n", argv[1]);
+        std::cerr << "can not open: " << argv[1] << std::endl;
         return 1;
     }
     fseek(f, 0, SEEK_END);
@@ -78,5 +78,10 @@ int main(int argc, char *argv[]) {
     std::vector<char> buf(size + 1);
     fread(&buf[0], 1, size, f);
     fclose(f);
-    parseTest(decls, &buf[0]);
+
+    Source s = &buf[0];
+    parseTest(decls, &s);
+    if (!s.eof()) {
+        std::cerr << s.ex("not eof") << std::endl;
+    }
 }

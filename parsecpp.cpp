@@ -28,6 +28,10 @@ bool Source::operator!=(const Source &src) const {
     return !(*this == src);
 }
 
+bool Source::eof() const {
+    return !*s;
+}
+
 Parser<char> satisfy(const std::function<bool (char)> &f) {
     return [=](Source *s) {
         char ch = s->peek();

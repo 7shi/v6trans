@@ -33,19 +33,24 @@ public:
     std::string ex(const std::string &e);
     bool operator==(const Source &src) const;
     bool operator!=(const Source &src) const;
+    bool eof() const;
 };
 
 template <typename T>
 using Parser = std::function<T (Source *)>;
 
 template <typename T>
-void parseTest(const Parser<T> &p, const Source &src) {
-    Source s = src;
+void parseTest(const Parser<T> &p, Source *src) {
     try {
-        std::cout << p(&s) << std::endl;
+        std::cout << p(src) << std::endl;
     } catch (const std::string &e) {
         std::cout << e << std::endl;
     }
+}
+template <typename T>
+void parseTest(const Parser<T> &p, const Source &src) {
+    Source s = src;
+    parseTest(p, &s);
 }
 
 extern Parser<char> satisfy(const std::function<bool (char)> &f);
