@@ -36,9 +36,8 @@ Parser<std::string> opt(const Parser<std::string> &p) {
     return tryp(p) || right("");
 }
 
-auto symbol = read(letter + many(letter || digit));
+auto sym = read(letter + many(letter || digit));
 auto num = many1(digit);
-auto var = symbol;
 Parser<std::string> lstr = [](Source *s) {
     std::string ret;
     char1('"')(s);
@@ -55,17 +54,18 @@ extern Parser<std::string> expr_;
 Parser<std::string> expr = [](Source *s) { return expr_(s); };
 
 Parser<std::string> call =
-    symbol + chr('(') + opt(expr + many(chr(',') + expr)) + chr(')');
+    sym + chr('(') + opt(expr + many(chr(',') + expr)) + chr(')');
 auto ret = str("return") + right(" ") + expr;
+auto let = sym + chr('=') + expr;
+auto var = str("int") + right(" ") + sym + chr(';');
 
 auto factor = read(
-    tryp(chr('(') + expr + chr(')')) ||
-    tryp(call) || tryp(var) || tryp(num) || lstr);
+    tryp(chr('(') + expr + chr(')')) || tryp(call) || num || lstr || sym);
 auto term = factor + many(chr('*') + factor || chr('/') + factor);
 Parser<std::string> expr_ = term + many(chr('+') + term || chr('-') + term);
 
-auto sentence = (tryp(ret) || expr) + chr(';');
-auto body = many(log(sentence, "sentence"));
+auto sentence = (tryp(ret) || tryp(let) || expr) + chr(';');
+auto body = many(log(var, "var")) + many(log(sentence, "sentence"));
 
 struct Func {
     std::string name;
@@ -75,7 +75,7 @@ std::ostream &operator<<(std::ostream &cout, const Func &f) {
     cout << f.name << "()";
 }
 Parser<Func> func = [](Source *s) {
-    Func f = symbol(s);
+    Func f = sym(s);
     (chr('(') >> chr(')'))(s);
     chr('{')(s);
     body(s);
