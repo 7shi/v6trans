@@ -42,7 +42,6 @@ auto term = factor + many(chr('*') + factor || chr('/') + factor);
 Parser<std::string> expr_ = term + many(chr('+') + term || chr('-') + term);
 
 auto sentence = (tryp(ret) || tryp(let) || expr) + chr(';');
-auto body = many(log(var, "var")) + many(log(sentence, "sentence"));
 
 struct Func {
     std::string name;
@@ -55,7 +54,8 @@ Parser<Func> func = [](Source *s) {
     Func f = sym(s);
     (chr('(') >> chr(')'))(s);
     chr('{')(s);
-    body(s);
+    many(log(var, "var"))(s);
+    many(log(sentence, "sentence"))(s);
     chr('}')(s);
     return f;
 };
