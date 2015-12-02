@@ -209,3 +209,26 @@ extern Parser<char> letter;
 extern Parser<char> space;
 
 extern Parser<std::string> spaces;
+
+template <typename T>
+Parser<T> watch(const Parser<T> &p, const std::string &msg) {
+    return [=](Source *s) {
+        T ret;
+        try {
+            ret = p(s);
+        } catch (const std::string &e) {
+            std::cerr << msg << ":" << e << std::endl;
+            throw;
+        }
+        return ret;
+    };
+}
+
+template <typename T>
+Parser<T> log(const Parser<T> &p, const std::string &tag) {
+    return [=](Source *s) {
+        T ret = watch(p, tag)(s);
+        std::cerr << "<" << tag << ">" << ret << "</" << tag << ">" << std::endl;
+        return ret;
+    };
+}
