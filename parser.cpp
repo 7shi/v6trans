@@ -2,23 +2,37 @@
 #include <vector>
 #include "parsecpp.h"
 
+Parser<std::string> comment = [](Source *s) {
+    std::string ret;
+    ret += tryp(string("/*"))(s);
+    for (;;) {
+        char ch1 = anyChar(s);
+        ret += ch1;
+        if (ch1 == '*') {
+            char ch2 = anyChar(s);
+            ret += ch2;
+            if (ch2 == '/') break;
+        }
+    }
+    return ret;
+};
 auto spc = char1(' ') || char1('\t') || char1('\n');
+auto spcs = many(many1(spc) || comment);
 template <typename T>
 Parser<T> read(const Parser<T> &p) {
-    return many(spc) >> p << many(spc);
+    return spcs >> p << spcs;
 }
 Parser<char> chr(char ch) { return read(char1(ch)); }
-Parser<std::string> str(const std::list<std::string> &list) {
-    return [=](Source *s) -> std::string {
+Parser<std::string> str(const std::string &s) { return read(tryp(string(s))); }
+Parser<std::string> strOf(const std::list<std::string> &list) {
+    return read(Parser<std::string>([=](Source *s) -> std::string {
         for (auto it = list.begin(); it != list.end(); ++it) {
-            Source bak = *s;
             try {
-                return string(*it)(s);
+                return str(*it)(s);
             } catch (const std::string &) {}
-            *s = bak;
         }
         throw s->ex("not match: " + toString(list));
-    };
+    }));
 }
 Parser<std::string> opt(const Parser<std::string> &p) {
     return tryp(p) || right("");
@@ -27,7 +41,7 @@ Parser<std::string> opt(const Parser<char> &p) {
     return tryp(p + right("")) || right("");
 }
 Parser<std::string> nochar(char ch) {
-    return [=](Source *s) {
+    return [=](Source *s) -> std::string {
         if (s->peek() != ch) return "";
         throw s->ex("not nochar '" + std::string(1, ch) + "'");
     };
@@ -47,65 +61,93 @@ Parser<std::string> lstr = [](Source *s) {
     return "\"" + ret + "\"";
 };
 auto lchar = char1('\'') + opt(char1('\\')) + anyChar + char1('\'');
-auto type = str({"int", "char"}) + many(chr('*'));
+auto type = strOf({"int", "char"}) + many(chr('*'));
 
 extern Parser<std::string> sentence_, expr0;
 Parser<std::string> expr = [](Source *s) { return read(expr0)(s); };
 Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
 
-auto var = type + right(" ") + sym + chr(';');
-auto ret = string("return") + right(" ") + expr;
-auto for_ = string("for") + chr('(') + expr + chr(';') + expr + chr(';') + expr + chr(')') + sentence;
-
 auto expr15 = read(char1('(') + expr + char1(')') || num || lstr || lchar || sym);
 auto expr14 = expr15 + many(
-    char1('(') + opt(expr + many(char1(',') + expr)) + char1(')')
-    || char1('[') + expr + char1(']'));
-auto expr13 = opt(str({"++", "--", "+", "-", "!", "~", "*", "&"})) + expr14;
-auto expr12 = expr13 + many(str({"*", "/", "%"}) + expr13);
-auto expr11 = expr12 + many(str({"+", "-"}) + expr12);
-auto expr10 = expr11 + many(str({"<<", ">>"}) + expr11);
-auto expr9 = expr10 + many((str({"<=", ">="})
-    || chr('<') + nochar('<') || chr('>') + nochar('>')) + expr10);
-auto expr8 = expr9 + many(str({"==", "!="}) + expr9);
-auto expr7 = expr8 + many(char1('&') + expr8);
-auto expr6 = expr7 + many(char1('^') + expr7);
-auto expr5 = expr6 + many(char1('|') + expr6);
-auto expr4 = expr5 + many(char1('&') + char1('&') + expr5);
-auto expr3 = expr4 + many(char1('|') + char1('|') + expr4);
-auto expr2 = expr3 + opt(char1('?') + expr + char1(':') + expr);
-auto expr1 = expr2 + opt(char1('=') + opt(str({"+", "-", "*", "/", "%", "<<", ">>", "&", "^", "|"})) + expr);
-Parser<std::string> expr0 = expr1 + many(char1(',') + expr1);
+       strOf({"++", "--"})
+    || chr('(') + opt(expr + many(char1(',') + expr)) + chr(')')
+    || chr('[') + expr + chr(']')
+    || chr('.') + read(sym)
+    || str("->") + read(sym));
+auto expr13 = many(strOf({"++", "--", "+", "-", "!", "~", "*", "&"})) + expr14;
+auto expr12 = expr13 + many(strOf({"*", "/", "%"}) + expr13);
+auto expr11 = expr12 + many(strOf({"+", "-"}) + read(expr12));
+auto expr10 = expr11 + many(strOf({"<<", ">>"}) + expr11);
+auto expr9 = expr10 + many(strOf({"<=", ">=", "<", ">"}) + read(expr10));
+auto expr8 = expr9 + many(strOf({"==", "!="}) + expr9);
+auto expr7 = expr8 + many(tryp(char1('&') + nochar('&')) + read(expr8));
+auto expr6 = expr7 + many(chr('^') + expr7);
+auto expr5 = expr6 + many(tryp(char1('|') + nochar('|')) + read(expr6));
+auto expr4 = expr5 + many(str("&&") + expr5);
+auto expr3 = expr4 + many(str("||") + expr4);
+auto expr2 = expr3 + opt(chr('?') + expr + chr(':') + expr);
+auto expr1 = expr2 + opt(chr('=') + opt(strOf({"+", "-", "*", "/", "%", "<<", ">>", "&", "^", "|"})) + expr);
+Parser<std::string> expr0 = expr1 + many(chr(',') + expr1);
 
-Parser<std::string> sentence_ = read(
-    chr('{') + many(sentence) + chr('}') ||
-    (ret || for_ || expr) + chr(';'));
+auto var1 = sym + opt(chr('[') + opt(num) + chr(']') || chr('(') + chr(')'));
+auto var = type + right(" ") + var1 + many(chr(',') + many(chr('*')) + var1) + chr(';');
+auto return_ = str("return") + right(" ") + expr + chr(';');
+auto for_ = str("for") + chr('(') + expr + chr(';') + expr + chr(';') + expr + chr(')') + sentence;
+auto if_ = str("if") + chr('(') + expr + chr(')') + sentence + opt(str("else") + right(" ") + sentence);
+auto while_ = str("while") + chr('(') + expr + chr(')') + sentence;
+auto do_ = str("do") + sentence + str("while") + chr('(') + expr + chr(')') + chr(';');
+auto case_ = log((str("case") + right(" ") + expr || str("default")) + chr(':'), "case");
+auto switch_ = str("switch") + log(chr('(') + expr + chr(')'), "switch") +
+    chr('{') + case_ + many(case_ || sentence) + chr('}');
 
-struct Func {
+Parser<std::string> sentence_ = chr('{') + many(sentence) + chr('}') ||
+    return_ || for_ || if_ || while_ || do_ || switch_ || expr + chr(';');
+
+struct Glob {
     std::string name;
-    Func(const std::string &name) : name(name) {}
+    Glob() {}
+    Glob(const std::string &name) : name(name) {}
 };
-std::ostream &operator<<(std::ostream &cout, const Func &f) {
-    cout << f.name << "()";
+std::ostream &operator<<(std::ostream &cout, const Glob &f) {
+    cout << f.name;
 }
-Parser<Func> func = [](Source *s) {
-    Func f = sym(s);
-    chr('(')(s);
-    opt(log(sym, "arg") + many(chr(',') + log(sym, "arg")))(s);
-    chr(')')(s);
+Parser<Glob> func = [](Source *s) {
+    Glob g = (sym + chr('(') + opt(log(sym, "arg") + many(chr(',') + log(sym, "arg"))) + chr(')'))(s);
     many(log(type + right(" ") + sym + chr(';'), "argtype"))(s);
     chr('{')(s);
     many(log(var, "var"))(s);
     many(log(sentence, "sentence"))(s);
     chr('}')(s);
-    return f;
+    return g;
 };
-
-auto decls = many(func);
+Parser<Glob> struct_ = [](Source *s) {
+    Glob g = (string("struct") + right(" ") + read(sym))(s);
+    std::cerr << g << std::endl;
+    (chr('{') + many(var) + chr('}') + opt(many(chr('*')) + sym) + chr(';'))(s);
+    return g;
+};
+Parser<Glob> gvar = [](Source *s) {
+    Glob g = (type + right(" ") + sym)(s);
+    (opt(chr('[') + opt(num) + chr(']')) + opt(expr) + chr(';'))(s);
+    return g;
+};
+auto decls = many(read(log(tryp(struct_), "struct") || tryp(gvar) || func));
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         parseTest(expr, "1 >> 2");
+        parseTest(expr, "a++");
+        parseTest(expr, "++a");
+        parseTest(expr, "*a");
+        parseTest(expr, "a + b");
+        parseTest(expr, "a + *b");
+        parseTest(expr, "*a + *b");
+        parseTest(expr, "a & b");
+        parseTest(expr, "a & *b");
+        parseTest(expr, "*a & *b");
+        parseTest(expr, "a && b");
+        parseTest(expr, "a && *b");
+        parseTest(expr, "*a && *b");
         //std::cerr << "usage: " << argv[0] << " source.c" << std::endl;
         return 1;
     }
