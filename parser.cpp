@@ -100,7 +100,8 @@ auto decls = many(func);
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        std::cerr << "usage: " << argv[0] << " source.c" << std::endl;
+        parseTest(expr, "1 >> 2");
+        //std::cerr << "usage: " << argv[0] << " source.c" << std::endl;
         return 1;
     }
     FILE *f = fopen(argv[1], "rb");
