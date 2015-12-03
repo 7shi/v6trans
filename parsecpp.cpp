@@ -23,11 +23,10 @@ std::string Source::getLine() const {
     }
     return oss.str();
 }
-std::string Source::showCol() const {
-    std::ostringstream oss;
-    for (int i = 1; i < col; ++i) oss << ' ';
-    oss << "^";
-    return oss.str();
+void Source::showPos(std::ostream &os) const {
+    os << getLine() << std::endl;
+    for (int i = 1; i < col; ++i) os << ' ';
+    os << "^" << std::endl;
 }
 std::string Source::ex(const std::string &e) const {
     std::ostringstream oss;
@@ -39,7 +38,7 @@ std::string Source::ex2(const std::string &e) const {
     std::ostringstream oss;
     oss << "[line " << line << ", col " << col << "] " << e;
     if (*s) oss << ": '" << *s << "'" << std::endl;
-    oss << getLine() << std::endl << showCol() << std::endl;
+    showPos(oss);
     return oss.str();
 }
 bool Source::operator==(const Source &src) const {

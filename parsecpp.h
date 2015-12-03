@@ -31,7 +31,7 @@ public:
     char peek();
     void next();
     std::string getLine() const;
-    std::string showCol() const;
+    void showPos(std::ostream &os) const;
     std::string ex(const std::string &e) const;
     std::string ex2(const std::string &e) const;
     bool operator==(const Source &src) const;
@@ -226,7 +226,7 @@ Parser<T> watch(const Parser<T> &p, const std::string &msg) {
             ret = p(s);
         } catch (const std::string &e) {
             std::cerr << msg << ":" << e << std::endl;
-            std::cerr << s->getLine() << std::endl << s->showCol() << std::endl;
+            s->showPos(std::cerr);
             throw;
         }
         return ret;
