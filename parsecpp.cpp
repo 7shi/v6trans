@@ -25,7 +25,7 @@ std::string Source::getLine() const {
 }
 void Source::showPos(std::ostream &os) const {
     os << getLine() << std::endl;
-    for (int i = 1; i < col; ++i) os << ' ';
+    for (int i = 0; i < col - 1; ++i) os << (l[i] == '\t' ? '\t' : ' ');
     os << "^" << std::endl;
 }
 std::string Source::ex(const std::string &e) const {
