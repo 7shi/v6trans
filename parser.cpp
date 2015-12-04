@@ -72,7 +72,6 @@ Parser<std::string> lstr = [](Source *s) {
     return "\"" + ret + "\"";
 };
 auto lchar = char1('\'') + opt(char1('\\')) + anyChar + char1('\'');
-auto type = strOf({"int", "char"}) + many('*');
 
 Parser<std::string> word(const std::string &w) {
     return [=](Source *s) {
@@ -85,6 +84,8 @@ Parser<std::string> word(const std::string &w) {
         return w;
     };
 }
+
+auto type = word("int") || word("char") || word("struct") + right(" ") + read(sym);
 
 Parser<std::string> xpr(int n);
 Parser<std::string> expr = read(xpr(0));
@@ -119,8 +120,8 @@ Parser<std::string> xpr(int n) {
 extern Parser<std::string> sentence_;
 Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
 
-auto var1 = sym + opt('[' + opt(num) + ']' || chr('(') + ')');
-auto var = type + right(" ") + var1 + many(',' + many('*') + var1) + ';';
+auto varname = many('*') + read(sym) + opt('[' + opt(num) + ']' || chr('(') + ')');
+auto var = type + right(" ") + varname + many(',' + varname) + ';';
 auto label = sym + ':';
 
 auto return_ = word("return") + right(" ") + expr + ';';
@@ -147,7 +148,7 @@ std::ostream &operator<<(std::ostream &cout, const Glob &f) {
 }
 Parser<Glob> func = [](Source *s) {
     Glob g = (sym + '(' + opt(log(sym, "arg") + many(',' + log(sym, "arg"))) + ')')(s);
-    many(log(type + right(" ") + sym + ';', "argtype"))(s);
+    many(log(var, "argtype"))(s);
     chr('{')(s);
     many(log(var, "var"))(s);
     many(log(sentence, "sentence"))(s);
@@ -165,7 +166,7 @@ Parser<Glob> gvar = [](Source *s) {
     (opt('[' + opt(num) + ']') + opt(expr) + ';')(s);
     return g;
 };
-auto decls = many(read(struct_ || tryp(gvar) || func));
+auto decls = many(read(tryp(struct_) || tryp(gvar) || func));
 
 void test() {
     parseTest(expr, "1 >> 2");
