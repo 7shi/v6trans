@@ -152,22 +152,25 @@ Parser<Glob> gvar = [](Source *s) {
 };
 auto decls = many(read(struct_ || tryp(gvar) || func));
 
+void test() {
+    parseTest(expr, "1 >> 2");
+    parseTest(expr, "a++");
+    parseTest(expr, "++a");
+    parseTest(expr, "*a");
+    parseTest(expr, "a + b");
+    parseTest(expr, "a + *b");
+    parseTest(expr, "*a + *b");
+    parseTest(expr, "a & b");
+    parseTest(expr, "a & *b");
+    parseTest(expr, "*a & *b");
+    parseTest(expr, "a && b");
+    parseTest(expr, "a && *b");
+    parseTest(expr, "*a && *b");
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        std::cerr << "start" << std::endl;
-        parseTest(expr, "1 >> 2");
-        parseTest(expr, "a++");
-        parseTest(expr, "++a");
-        parseTest(expr, "*a");
-        parseTest(expr, "a + b");
-        parseTest(expr, "a + *b");
-        parseTest(expr, "*a + *b");
-        parseTest(expr, "a & b");
-        parseTest(expr, "a & *b");
-        parseTest(expr, "*a & *b");
-        parseTest(expr, "a && b");
-        parseTest(expr, "a && *b");
-        parseTest(expr, "*a && *b");
+        test();
         //std::cerr << "usage: " << argv[0] << " source.c" << std::endl;
         return 1;
     }
