@@ -2,6 +2,22 @@
 #include <vector>
 #include "parsecpp.h"
 
+template <typename T>
+Parser<T> trace(const Parser<T> &p, const std::string &tag) {
+    std::cerr << tag << std::endl;
+    return [=](Source *s) {
+        static std::string space;
+        std::cerr << space << "<" << tag << ">" << std::endl;
+        auto bak = space;
+        space += "  ";
+        T ret = watch(p, tag)(s);
+        std::cerr << space << ret << std::endl;
+        space = bak;
+        std::cerr << space << "</" << tag << ">" << std::endl;
+        return ret;
+    };
+}
+
 Parser<std::string> comment = [](Source *s) {
     std::string ret;
     ret += tryp(string("/*"))(s);
@@ -68,26 +84,26 @@ Parser<std::string> expr = [](Source *s) { return read(expr0)(s); };
 Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
 
 auto expr15 = read(char1('(') + expr + char1(')') || num || lstr || lchar || sym);
-auto expr14 = expr15 + many(
+auto expr14 = trace(expr15, "expr15") + many(
        strOf({"++", "--"})
     || chr('(') + opt(expr + many(char1(',') + expr)) + chr(')')
     || chr('[') + expr + chr(']')
     || chr('.') + read(sym)
     || str("->") + read(sym));
-auto expr13 = many(strOf({"++", "--", "+", "-", "!", "~", "*", "&"})) + expr14;
-auto expr12 = expr13 + many(strOf({"*", "/", "%"}) + expr13);
-auto expr11 = expr12 + many(strOf({"+", "-"}) + read(expr12));
-auto expr10 = expr11 + many(strOf({"<<", ">>"}) + expr11);
-auto expr9 = expr10 + many(strOf({"<=", ">=", "<", ">"}) + read(expr10));
-auto expr8 = expr9 + many(strOf({"==", "!="}) + expr9);
-auto expr7 = expr8 + many(tryp(char1('&') + nochar('&')) + read(expr8));
-auto expr6 = expr7 + many(chr('^') + expr7);
-auto expr5 = expr6 + many(tryp(char1('|') + nochar('|')) + read(expr6));
-auto expr4 = expr5 + many(str("&&") + expr5);
-auto expr3 = expr4 + many(str("||") + expr4);
-auto expr2 = expr3 + opt(chr('?') + expr + chr(':') + expr);
-auto expr1 = expr2 + opt(chr('=') + opt(strOf({"+", "-", "*", "/", "%", "<<", ">>", "&", "^", "|"})) + expr);
-Parser<std::string> expr0 = expr1 + many(chr(',') + expr1);
+auto expr13 = many(strOf({"++", "--", "+", "-", "!", "~", "*", "&"})) + trace(expr14, "expr14");
+auto expr12 = trace(expr13, "expr13") + many(strOf({"*", "/", "%"}) + expr13);
+auto expr11 = trace(expr12, "expr12") + many(strOf({"+", "-"}) + read(expr12));
+auto expr10 = trace(expr11, "expr11") + many(strOf({"<<", ">>"}) + expr11);
+auto expr9 = trace(expr10, "expr10") + many(strOf({"<=", ">=", "<", ">"}) + read(expr10));
+auto expr8 = trace(expr9, "expr9") + many(strOf({"==", "!="}) + expr9);
+auto expr7 = trace(expr8, "expr8") + many(tryp(char1('&') + nochar('&')) + read(expr8));
+auto expr6 = trace(expr7, "expr7") + many(chr('^') + expr7);
+auto expr5 = trace(expr6, "expr6") + many(tryp(char1('|') + nochar('|')) + read(expr6));
+auto expr4 = trace(expr5, "expr5") + many(str("&&") + expr5);
+auto expr3 = trace(expr4, "expr4") + many(str("||") + expr4);
+auto expr2 = trace(expr3, "expr3") + opt(chr('?') + expr + chr(':') + expr);
+auto expr1 = trace(expr2, "expr2") + opt(chr('=') + opt(strOf({"+", "-", "*", "/", "%", "<<", ">>", "&", "^", "|"})) + expr);
+Parser<std::string> expr0 = trace(expr1, "expr1") + many(chr(',') + expr1);
 
 auto var1 = sym + opt(chr('[') + opt(num) + chr(']') || chr('(') + chr(')'));
 auto var = type + right(" ") + var1 + many(chr(',') + many(chr('*')) + var1) + chr(';');
@@ -135,19 +151,20 @@ auto decls = many(read(log(tryp(struct_), "struct") || tryp(gvar) || func));
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        parseTest(expr, "1 >> 2");
-        parseTest(expr, "a++");
-        parseTest(expr, "++a");
-        parseTest(expr, "*a");
-        parseTest(expr, "a + b");
-        parseTest(expr, "a + *b");
-        parseTest(expr, "*a + *b");
-        parseTest(expr, "a & b");
-        parseTest(expr, "a & *b");
-        parseTest(expr, "*a & *b");
-        parseTest(expr, "a && b");
-        parseTest(expr, "a && *b");
-        parseTest(expr, "*a && *b");
+        std::cerr << "start" << std::endl;
+        parseTest(trace(expr, "expr"), "1 >> 2");
+        parseTest(trace(expr, "expr"), "a++");
+        parseTest(trace(expr, "expr"), "++a");
+        parseTest(trace(expr, "expr"), "*a");
+        parseTest(trace(expr, "expr"), "a + b");
+        parseTest(trace(expr, "expr"), "a + *b");
+        parseTest(trace(expr, "expr"), "*a + *b");
+        parseTest(trace(expr, "expr"), "a & b");
+        parseTest(trace(expr, "expr"), "a & *b");
+        parseTest(trace(expr, "expr"), "*a & *b");
+        parseTest(trace(expr, "expr"), "a && b");
+        parseTest(trace(expr, "expr"), "a && *b");
+        parseTest(trace(expr, "expr"), "*a && *b");
         //std::cerr << "usage: " << argv[0] << " source.c" << std::endl;
         return 1;
     }
