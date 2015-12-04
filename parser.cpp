@@ -74,62 +74,35 @@ Parser<std::string> lstr = [](Source *s) {
 auto lchar = char1('\'') + opt(char1('\\')) + anyChar + char1('\'');
 auto type = strOf({"int", "char"}) + many('*');
 
-extern Parser<std::string> expr0;
-Parser<std::string> expr = [](Source *s) { return read(expr0)(s); };
+Parser<std::string> xpr(int n);
+Parser<std::string> expr = read(xpr(0));
 
-Parser<std::string> expr15 = [](Source *s) {
-    return (read(char1('(') + expr + char1(')') || num || lstr || lchar || sym))(s);
+Parser<std::string> xprs[] = {
+    /* 0*/ xpr(1) + many(',' + xpr(1)),
+    /* 1*/ xpr(2) + opt('=' + opt(strOf({"+", "-", "*", "/", "%", "<<", ">>", "&", "^", "|"})) + expr),
+    /* 2*/ xpr(3) + opt('?' + expr + ':' + expr),
+    /* 3*/ xpr(4) + many(str("||") + xpr(4)),
+    /* 4*/ xpr(5) + many(str("&&") + xpr(5)),
+    /* 5*/ xpr(6) + many(tryp(char1('|') + nochar('|')) + read(xpr(6))),
+    /* 6*/ xpr(7) + many('^' + xpr(7)),
+    /* 7*/ xpr(8) + many(tryp(char1('&') + nochar('&')) + read(xpr(8))),
+    /* 8*/ xpr(9) + many(strOf({"==", "!="}) + xpr(9)),
+    /* 9*/ xpr(10) + many(strOf({"<=", ">=", "<", ">"}) + read(xpr(10))),
+    /*10*/ xpr(11) + many(strOf({"<<", ">>"}) + xpr(11)),
+    /*11*/ xpr(12) + many(strOf({"+", "-"}) + read(xpr(12))),
+    /*12*/ xpr(13) + many(strOf({"*", "/", "%"}) + xpr(13)),
+    /*13*/ many(strOf({"++", "--", "+", "-", "!", "~", "*", "&"})) + xpr(14),
+    /*14*/ xpr(15) + many(
+               strOf({"++", "--"})
+            || '(' + opt(expr + many(char1(',') + expr)) + ')'
+            || '[' + expr + ']'
+            || '.' + read(sym)
+            || str("->") + read(sym)),
+    /*15*/ read(char1('(') + expr + char1(')') || num || lstr || lchar || sym),
 };
-Parser<std::string> expr14 = [](Source *s) {
-    return (expr15 + many(
-       strOf({"++", "--"})
-    || '(' + opt(expr + many(char1(',') + expr)) + ')'
-    || '[' + expr + ']'
-    || '.' + read(sym)
-    || str("->") + read(sym)))(s);
-};
-Parser<std::string> expr13 = [](Source *s) {
-    return (many(strOf({"++", "--", "+", "-", "!", "~", "*", "&"})) + expr14)(s);
-};
-Parser<std::string> expr12 = [](Source *s) {
-    return (expr13 + many(strOf({"*", "/", "%"}) + expr13))(s);
-};
-Parser<std::string> expr11 = [](Source *s) {
-    return (expr12 + many(strOf({"+", "-"}) + read(expr12)))(s);
-};
-Parser<std::string> expr10 = [](Source *s) {
-    return (expr11 + many(strOf({"<<", ">>"}) + expr11))(s);
-};
-Parser<std::string> expr9 = [](Source *s) {
-    return (expr10 + many(strOf({"<=", ">=", "<", ">"}) + read(expr10)))(s);
-};
-Parser<std::string> expr8 = [](Source *s) {
-    return (expr9 + many(strOf({"==", "!="}) + expr9))(s);
-};
-Parser<std::string> expr7 = [](Source *s) {
-    return (expr8 + many(tryp(char1('&') + nochar('&')) + read(expr8)))(s);
-};
-Parser<std::string> expr6 = [](Source *s) {
-    return (expr7 + many('^' + expr7))(s);
-};
-Parser<std::string> expr5 = [](Source *s) {
-    return (expr6 + many(tryp(char1('|') + nochar('|')) + read(expr6)))(s);
-};
-Parser<std::string> expr4 = [](Source *s) {
-    return (expr5 + many(str("&&") + expr5))(s);
-};
-Parser<std::string> expr3 = [](Source *s) {
-    return (expr4 + many(str("||") + expr4))(s);
-};
-Parser<std::string> expr2 = [](Source *s) {
-    return (expr3 + opt('?' + expr + ':' + expr))(s);
-};
-Parser<std::string> expr1 = [](Source *s) {
-    return (expr2 + opt('=' + opt(strOf({"+", "-", "*", "/", "%", "<<", ">>", "&", "^", "|"})) + expr))(s);
-};
-Parser<std::string> expr0 = [](Source *s) {
-    return (expr1 + many(',' + expr1))(s);
-};
+Parser<std::string> xpr(int n) {
+    return [=](Source *s){ return xprs[n](s); };
+}
 
 extern Parser<std::string> sentence_;
 Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
