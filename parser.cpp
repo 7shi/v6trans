@@ -167,7 +167,7 @@ Parser<Glob> func = [](Source *s) {
     return g;
 };
 Parser<Glob> struct_ = [](Source *s) {
-    Glob g = (string("struct") + right(" ") + read(sym))(s);
+    Glob g = (str("struct") + right(" ") + read(sym))(s);
     std::cerr << g << std::endl;
     ('{' + many(var) + '}' + opt(many('*') + sym) + ';')(s);
     return g;
@@ -177,7 +177,7 @@ Parser<Glob> gvar = [](Source *s) {
     (opt('[' + opt(num) + ']') + opt(expr) + ';')(s);
     return g;
 };
-auto decls = many(read(tryp(struct_) || tryp(gvar) || func));
+auto decls = many(read(struct_ || tryp(gvar) || func));
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
