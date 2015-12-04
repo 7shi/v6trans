@@ -83,27 +83,59 @@ extern Parser<std::string> sentence_, expr0;
 Parser<std::string> expr = [](Source *s) { return read(expr0)(s); };
 Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
 
-auto expr15 = read(char1('(') + expr + char1(')') || num || lstr || lchar || sym);
-auto expr14 = trace(expr15, "expr15") + many(
+Parser<std::string> expr15 = [](Source *s) {
+    return (read(char1('(') + expr + char1(')') || num || lstr || lchar || sym))(s);
+};
+Parser<std::string> expr14 = [](Source *s) {
+    return (trace(expr15, "expr15") + many(
        strOf({"++", "--"})
     || chr('(') + opt(expr + many(char1(',') + expr)) + chr(')')
     || chr('[') + expr + chr(']')
     || chr('.') + read(sym)
-    || str("->") + read(sym));
-auto expr13 = many(strOf({"++", "--", "+", "-", "!", "~", "*", "&"})) + trace(expr14, "expr14");
-auto expr12 = trace(expr13, "expr13") + many(strOf({"*", "/", "%"}) + expr13);
-auto expr11 = trace(expr12, "expr12") + many(strOf({"+", "-"}) + read(expr12));
-auto expr10 = trace(expr11, "expr11") + many(strOf({"<<", ">>"}) + expr11);
-auto expr9 = trace(expr10, "expr10") + many(strOf({"<=", ">=", "<", ">"}) + read(expr10));
-auto expr8 = trace(expr9, "expr9") + many(strOf({"==", "!="}) + expr9);
-auto expr7 = trace(expr8, "expr8") + many(tryp(char1('&') + nochar('&')) + read(expr8));
-auto expr6 = trace(expr7, "expr7") + many(chr('^') + expr7);
-auto expr5 = trace(expr6, "expr6") + many(tryp(char1('|') + nochar('|')) + read(expr6));
-auto expr4 = trace(expr5, "expr5") + many(str("&&") + expr5);
-auto expr3 = trace(expr4, "expr4") + many(str("||") + expr4);
-auto expr2 = trace(expr3, "expr3") + opt(chr('?') + expr + chr(':') + expr);
-auto expr1 = trace(expr2, "expr2") + opt(chr('=') + opt(strOf({"+", "-", "*", "/", "%", "<<", ">>", "&", "^", "|"})) + expr);
-Parser<std::string> expr0 = trace(expr1, "expr1") + many(chr(',') + expr1);
+    || str("->") + read(sym)))(s);
+};
+Parser<std::string> expr13 = [](Source *s) {
+    return (many(strOf({"++", "--", "+", "-", "!", "~", "*", "&"})) + trace(expr14, "expr14"))(s);
+};
+Parser<std::string> expr12 = [](Source *s) {
+    return (trace(expr13, "expr13") + many(strOf({"*", "/", "%"}) + expr13))(s);
+};
+Parser<std::string> expr11 = [](Source *s) {
+    return (trace(expr12, "expr12") + many(strOf({"+", "-"}) + read(expr12)))(s);
+};
+Parser<std::string> expr10 = [](Source *s) {
+    return (trace(expr11, "expr11") + many(strOf({"<<", ">>"}) + expr11))(s);
+};
+Parser<std::string> expr9 = [](Source *s) {
+    return (trace(expr10, "expr10") + many(strOf({"<=", ">=", "<", ">"}) + read(expr10)))(s);
+};
+Parser<std::string> expr8 = [](Source *s) {
+    return (trace(expr9, "expr9") + many(strOf({"==", "!="}) + expr9))(s);
+};
+Parser<std::string> expr7 = [](Source *s) {
+    return (trace(expr8, "expr8") + many(tryp(char1('&') + nochar('&')) + read(expr8)))(s);
+};
+Parser<std::string> expr6 = [](Source *s) {
+    return (trace(expr7, "expr7") + many(chr('^') + expr7))(s);
+};
+Parser<std::string> expr5 = [](Source *s) {
+    return (trace(expr6, "expr6") + many(tryp(char1('|') + nochar('|')) + read(expr6)))(s);
+};
+Parser<std::string> expr4 = [](Source *s) {
+    return (trace(expr5, "expr5") + many(str("&&") + expr5))(s);
+};
+Parser<std::string> expr3 = [](Source *s) {
+    return (trace(expr4, "expr4") + many(str("||") + expr4))(s);
+};
+Parser<std::string> expr2 = [](Source *s) {
+    return (trace(expr3, "expr3") + opt(chr('?') + expr + chr(':') + expr))(s);
+};
+Parser<std::string> expr1 = [](Source *s) {
+    return (trace(expr2, "expr2") + opt(chr('=') + opt(strOf({"+", "-", "*", "/", "%", "<<", ">>", "&", "^", "|"})) + expr))(s);
+};
+Parser<std::string> expr0 = [](Source *s) {
+    return (trace(expr1, "expr1") + many(chr(',') + expr1))(s);
+};
 
 auto var1 = sym + opt(chr('[') + opt(num) + chr(']') || chr('(') + chr(')'));
 auto var = type + right(" ") + var1 + many(chr(',') + many(chr('*')) + var1) + chr(';');
