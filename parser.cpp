@@ -121,6 +121,8 @@ Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
 
 auto var1 = sym + opt('[' + opt(num) + ']' || chr('(') + ')');
 auto var = type + right(" ") + var1 + many(',' + many('*') + var1) + ';';
+auto label = sym + ':';
+
 auto return_ = word("return") + right(" ") + expr + ';';
 auto for_ = word("for") + '(' + expr + ';' + expr + ';' + expr + ')' + sentence;
 auto if_ = word("if") + '(' + expr + ')' + sentence + opt(word("else") + right(" ") + sentence);
@@ -132,7 +134,8 @@ auto switch_ = word("switch") + '(' + expr + ')' +
 auto goto_ = word("goto") + right(" ") + sym + ';';
 
 Parser<std::string> sentence_ = '{' + many(sentence) + '}' ||
-    return_ || for_ || if_ || while_ || do_ || switch_ || goto_ || expr + ';';
+    return_ || for_ || if_ || while_ || do_ || switch_ || goto_ ||
+    tryp(label) || expr + ';';
 
 struct Glob {
     std::string name;
