@@ -63,9 +63,8 @@ Parser<std::string> lstr = [](Source *s) {
 auto lchar = char1('\'') + opt(char1('\\')) + anyChar + char1('\'');
 auto type = strOf({"int", "char"}) + many(chr('*'));
 
-extern Parser<std::string> sentence_, expr0;
+extern Parser<std::string> expr0;
 Parser<std::string> expr = [](Source *s) { return read(expr0)(s); };
-Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
 
 Parser<std::string> expr15 = [](Source *s) {
     return (read(char1('(') + expr + char1(')') || num || lstr || lchar || sym))(s);
@@ -121,6 +120,9 @@ Parser<std::string> expr0 = [](Source *s) {
     return (expr1 + many(chr(',') + expr1))(s);
 };
 
+extern Parser<std::string> sentence_;
+Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
+
 auto var1 = sym + opt(chr('[') + opt(num) + chr(']') || chr('(') + chr(')'));
 auto var = type + right(" ") + var1 + many(chr(',') + many(chr('*')) + var1) + chr(';');
 auto return_ = str("return") + right(" ") + expr + chr(';');
@@ -128,12 +130,13 @@ auto for_ = str("for") + chr('(') + expr + chr(';') + expr + chr(';') + expr + c
 auto if_ = str("if") + chr('(') + expr + chr(')') + sentence + opt(str("else") + right(" ") + sentence);
 auto while_ = str("while") + chr('(') + expr + chr(')') + sentence;
 auto do_ = str("do") + sentence + str("while") + chr('(') + expr + chr(')') + chr(';');
-auto case_ = log((str("case") + right(" ") + expr || str("default")) + chr(':'), "case");
-auto switch_ = str("switch") + log(chr('(') + expr + chr(')'), "switch") +
+auto case_ = (str("case") + right(" ") + expr || str("default")) + chr(':');
+auto switch_ = str("switch") + chr('(') + expr + chr(')') +
     chr('{') + case_ + many(case_ || sentence) + chr('}');
+auto goto_ = str("goto") + right(" ") + sym + chr(';');
 
 Parser<std::string> sentence_ = chr('{') + many(sentence) + chr('}') ||
-    return_ || for_ || if_ || while_ || do_ || switch_ || expr + chr(';');
+    return_ || for_ || if_ || while_ || do_ || switch_ || goto_ || expr + chr(';');
 
 struct Glob {
     std::string name;
@@ -163,7 +166,7 @@ Parser<Glob> gvar = [](Source *s) {
     (opt(chr('[') + opt(num) + chr(']')) + opt(expr) + chr(';'))(s);
     return g;
 };
-auto decls = many(read(log(tryp(struct_), "struct") || tryp(gvar) || func));
+auto decls = many(read(tryp(struct_) || tryp(gvar) || func));
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
