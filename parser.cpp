@@ -74,6 +74,18 @@ Parser<std::string> lstr = [](Source *s) {
 auto lchar = char1('\'') + opt(char1('\\')) + anyChar + char1('\'');
 auto type = strOf({"int", "char"}) + many('*');
 
+Parser<std::string> word(const std::string &w) {
+    return [=](Source *s) {
+        auto bak = *s;
+        auto sy = read(sym)(s);
+        if (w != sy) {
+            *s = bak;
+            throw "not word \"" + w + "\"";
+        }
+        return w;
+    };
+}
+
 Parser<std::string> xpr(int n);
 Parser<std::string> expr = read(xpr(0));
 
@@ -109,15 +121,15 @@ Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
 
 auto var1 = sym + opt('[' + opt(num) + ']' || chr('(') + ')');
 auto var = type + right(" ") + var1 + many(',' + many('*') + var1) + ';';
-auto return_ = str("return") + right(" ") + expr + ';';
-auto for_ = str("for") + '(' + expr + ';' + expr + ';' + expr + ')' + sentence;
-auto if_ = str("if") + '(' + expr + ')' + sentence + opt(str("else") + right(" ") + sentence);
-auto while_ = str("while") + '(' + expr + ')' + sentence;
-auto do_ = str("do") + sentence + str("while") + '(' + expr + ')' + ';';
-auto case_ = (str("case") + right(" ") + expr || str("default")) + ':';
-auto switch_ = str("switch") + '(' + expr + ')' +
+auto return_ = word("return") + right(" ") + expr + ';';
+auto for_ = word("for") + '(' + expr + ';' + expr + ';' + expr + ')' + sentence;
+auto if_ = word("if") + '(' + expr + ')' + sentence + opt(word("else") + right(" ") + sentence);
+auto while_ = word("while") + '(' + expr + ')' + sentence;
+auto do_ = word("do") + sentence + word("while") + '(' + expr + ')' + ';';
+auto case_ = (word("case") + right(" ") + expr || word("default")) + ':';
+auto switch_ = word("switch") + '(' + expr + ')' +
     '{' + case_ + many(case_ || sentence) + '}';
-auto goto_ = str("goto") + right(" ") + sym + ';';
+auto goto_ = word("goto") + right(" ") + sym + ';';
 
 Parser<std::string> sentence_ = '{' + many(sentence) + '}' ||
     return_ || for_ || if_ || while_ || do_ || switch_ || goto_ || expr + ';';
@@ -140,7 +152,7 @@ Parser<Glob> func = [](Source *s) {
     return g;
 };
 Parser<Glob> struct_ = [](Source *s) {
-    Glob g = (str("struct") + right(" ") + read(sym))(s);
+    Glob g = (word("struct") + right(" ") + read(sym))(s);
     std::cerr << g << std::endl;
     ('{' + many(var) + '}' + opt(many('*') + sym) + ';')(s);
     return g;
