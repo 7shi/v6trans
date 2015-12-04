@@ -22,7 +22,18 @@ template <typename T>
 Parser<T> read(const Parser<T> &p) {
     return spcs >> p << spcs;
 }
+
 Parser<char> chr(char ch) { return read(char1(ch)); }
+template <typename T>
+Parser<std::string> operator+(char ch, const Parser<T> &p) {
+    return chr(ch) + p;
+}
+template <typename T>
+Parser<std::string> operator+(const Parser<T> &p, char ch) {
+    return p + chr(ch);
+}
+Parser<std::string> many(char ch) { return many(chr(ch)); }
+
 Parser<std::string> str(const std::string &s) { return read(tryp(string(s))); }
 Parser<std::string> strOf(const std::list<std::string> &list) {
     return read(Parser<std::string>([=](Source *s) -> std::string {
@@ -61,7 +72,7 @@ Parser<std::string> lstr = [](Source *s) {
     return "\"" + ret + "\"";
 };
 auto lchar = char1('\'') + opt(char1('\\')) + anyChar + char1('\'');
-auto type = strOf({"int", "char"}) + many(chr('*'));
+auto type = strOf({"int", "char"}) + many('*');
 
 extern Parser<std::string> expr0;
 Parser<std::string> expr = [](Source *s) { return read(expr0)(s); };
@@ -72,9 +83,9 @@ Parser<std::string> expr15 = [](Source *s) {
 Parser<std::string> expr14 = [](Source *s) {
     return (expr15 + many(
        strOf({"++", "--"})
-    || chr('(') + opt(expr + many(char1(',') + expr)) + chr(')')
-    || chr('[') + expr + chr(']')
-    || chr('.') + read(sym)
+    || '(' + opt(expr + many(char1(',') + expr)) + ')'
+    || '[' + expr + ']'
+    || '.' + read(sym)
     || str("->") + read(sym)))(s);
 };
 Parser<std::string> expr13 = [](Source *s) {
@@ -99,7 +110,7 @@ Parser<std::string> expr7 = [](Source *s) {
     return (expr8 + many(tryp(char1('&') + nochar('&')) + read(expr8)))(s);
 };
 Parser<std::string> expr6 = [](Source *s) {
-    return (expr7 + many(chr('^') + expr7))(s);
+    return (expr7 + many('^' + expr7))(s);
 };
 Parser<std::string> expr5 = [](Source *s) {
     return (expr6 + many(tryp(char1('|') + nochar('|')) + read(expr6)))(s);
@@ -111,32 +122,32 @@ Parser<std::string> expr3 = [](Source *s) {
     return (expr4 + many(str("||") + expr4))(s);
 };
 Parser<std::string> expr2 = [](Source *s) {
-    return (expr3 + opt(chr('?') + expr + chr(':') + expr))(s);
+    return (expr3 + opt('?' + expr + ':' + expr))(s);
 };
 Parser<std::string> expr1 = [](Source *s) {
-    return (expr2 + opt(chr('=') + opt(strOf({"+", "-", "*", "/", "%", "<<", ">>", "&", "^", "|"})) + expr))(s);
+    return (expr2 + opt('=' + opt(strOf({"+", "-", "*", "/", "%", "<<", ">>", "&", "^", "|"})) + expr))(s);
 };
 Parser<std::string> expr0 = [](Source *s) {
-    return (expr1 + many(chr(',') + expr1))(s);
+    return (expr1 + many(',' + expr1))(s);
 };
 
 extern Parser<std::string> sentence_;
 Parser<std::string> sentence = [](Source *s) { return sentence_(s); };
 
-auto var1 = sym + opt(chr('[') + opt(num) + chr(']') || chr('(') + chr(')'));
-auto var = type + right(" ") + var1 + many(chr(',') + many(chr('*')) + var1) + chr(';');
-auto return_ = str("return") + right(" ") + expr + chr(';');
-auto for_ = str("for") + chr('(') + expr + chr(';') + expr + chr(';') + expr + chr(')') + sentence;
-auto if_ = str("if") + chr('(') + expr + chr(')') + sentence + opt(str("else") + right(" ") + sentence);
-auto while_ = str("while") + chr('(') + expr + chr(')') + sentence;
-auto do_ = str("do") + sentence + str("while") + chr('(') + expr + chr(')') + chr(';');
-auto case_ = (str("case") + right(" ") + expr || str("default")) + chr(':');
-auto switch_ = str("switch") + chr('(') + expr + chr(')') +
-    chr('{') + case_ + many(case_ || sentence) + chr('}');
-auto goto_ = str("goto") + right(" ") + sym + chr(';');
+auto var1 = sym + opt('[' + opt(num) + ']' || chr('(') + ')');
+auto var = type + right(" ") + var1 + many(',' + many('*') + var1) + ';';
+auto return_ = str("return") + right(" ") + expr + ';';
+auto for_ = str("for") + '(' + expr + ';' + expr + ';' + expr + ')' + sentence;
+auto if_ = str("if") + '(' + expr + ')' + sentence + opt(str("else") + right(" ") + sentence);
+auto while_ = str("while") + '(' + expr + ')' + sentence;
+auto do_ = str("do") + sentence + str("while") + '(' + expr + ')' + ';';
+auto case_ = (str("case") + right(" ") + expr || str("default")) + ':';
+auto switch_ = str("switch") + '(' + expr + ')' +
+    '{' + case_ + many(case_ || sentence) + '}';
+auto goto_ = str("goto") + right(" ") + sym + ';';
 
-Parser<std::string> sentence_ = chr('{') + many(sentence) + chr('}') ||
-    return_ || for_ || if_ || while_ || do_ || switch_ || goto_ || expr + chr(';');
+Parser<std::string> sentence_ = '{' + many(sentence) + '}' ||
+    return_ || for_ || if_ || while_ || do_ || switch_ || goto_ || expr + ';';
 
 struct Glob {
     std::string name;
@@ -147,8 +158,8 @@ std::ostream &operator<<(std::ostream &cout, const Glob &f) {
     cout << f.name;
 }
 Parser<Glob> func = [](Source *s) {
-    Glob g = (sym + chr('(') + opt(log(sym, "arg") + many(chr(',') + log(sym, "arg"))) + chr(')'))(s);
-    many(log(type + right(" ") + sym + chr(';'), "argtype"))(s);
+    Glob g = (sym + '(' + opt(log(sym, "arg") + many(',' + log(sym, "arg"))) + ')')(s);
+    many(log(type + right(" ") + sym + ';', "argtype"))(s);
     chr('{')(s);
     many(log(var, "var"))(s);
     many(log(sentence, "sentence"))(s);
@@ -158,12 +169,12 @@ Parser<Glob> func = [](Source *s) {
 Parser<Glob> struct_ = [](Source *s) {
     Glob g = (string("struct") + right(" ") + read(sym))(s);
     std::cerr << g << std::endl;
-    (chr('{') + many(var) + chr('}') + opt(many(chr('*')) + sym) + chr(';'))(s);
+    ('{' + many(var) + '}' + opt(many('*') + sym) + ';')(s);
     return g;
 };
 Parser<Glob> gvar = [](Source *s) {
     Glob g = (type + right(" ") + sym)(s);
-    (opt(chr('[') + opt(num) + chr(']')) + opt(expr) + chr(';'))(s);
+    (opt('[' + opt(num) + ']') + opt(expr) + ';')(s);
     return g;
 };
 auto decls = many(read(tryp(struct_) || tryp(gvar) || func));
