@@ -199,6 +199,8 @@ extern Parser<char> left(const std::string &e);
 
 extern Parser<char> char1(char ch);
 extern Parser<std::string> string(const std::string &str);
+extern Parser<char> oneOf(const std::string &str);
+extern Parser<std::string> stringOf(const std::list<std::string> &list);
 
 extern bool isDigit   (char ch);
 extern bool isUpper   (char ch);

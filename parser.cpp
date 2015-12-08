@@ -36,14 +36,7 @@ Parser<std::string> many(char ch) { return many(chr(ch)); }
 
 Parser<std::string> str(const std::string &s) { return read(tryp(string(s))); }
 Parser<std::string> strOf(const std::list<std::string> &list) {
-    return read(Parser<std::string>([=](Source *s) -> std::string {
-        for (auto it = list.begin(); it != list.end(); ++it) {
-            try {
-                return str(*it)(s);
-            } catch (const std::string &) {}
-        }
-        throw s->ex("not match: " + toString(list));
-    }));
+    return read(stringOf(list));
 }
 Parser<std::string> opt(const Parser<std::string> &p) {
     return tryp(p) || right("");

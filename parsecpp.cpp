@@ -91,6 +91,28 @@ Parser<std::string> string(const std::string &str) {
     };
 }
 
+Parser<char> oneOf(const std::string &str) {
+    return [=](Source *s) {
+        char ch = s->peek();
+        if (str.find(ch) == std::string::npos) {
+            throw s->ex("not oneOf \"" + str + "\"");
+        }
+        s->next();
+        return ch;
+    };
+}
+
+Parser<std::string> stringOf(const std::list<std::string> &list) {
+    return [=](Source *s) -> std::string {
+        for (auto it = list.begin(); it != list.end(); ++it) {
+            try {
+                return tryp(string(*it))(s);
+            } catch (const std::string &) {}
+        }
+        throw s->ex("not stringOf: " + toString(list));
+    };
+}
+
 bool isDigit   (char ch) { return '0' <= ch && ch <= '9'; }
 bool isUpper   (char ch) { return 'A' <= ch && ch <= 'Z'; }
 bool isLower   (char ch) { return 'a' <= ch && ch <= 'z'; }
