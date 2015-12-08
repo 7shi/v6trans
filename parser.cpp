@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <vector>
+#include <utility>
 #include "parsecpp.h"
 
 Parser<std::string> comment = [](Source *s) {
@@ -65,6 +66,25 @@ Parser<std::string> lstr = [](Source *s) {
     return "\"" + ret + "\"";
 };
 auto lchar = char1('\'') + opt(char1('\\')) + anyChar + char1('\'');
+
+auto ops = 
+       char1('>') + opt(oneOf(">="))
+    || char1('<') + opt(oneOf("<="))
+    || char1('=') + opt(stringOf({">>", "<<", "^", "=", "+", "-", "*", "/", "&", "|", "%"}))
+    || stringOf({"++", "--", "&&", "||", "!="}) || anyChar + right("");
+enum TokenType { Num, Sym, Str, Char, Op };
+using Token = std::pair<TokenType, std::string>;
+std::ostream &operator<<(std::ostream &cout, const Token &t) {
+    cout << "(" << t.first << "," << t.second << ")";
+}
+Parser<Token> token = [](Source *s) {
+    spcs(s);
+    try { return std::make_pair(Num , num  (s)); } catch (std::string &) {}
+    try { return std::make_pair(Sym , sym  (s)); } catch (std::string &) {}
+    try { return std::make_pair(Str , lstr (s)); } catch (std::string &) {}
+    try { return std::make_pair(Char, lchar(s)); } catch (std::string &) {}
+    return std::make_pair(Op, ops(s));
+};
 
 Parser<std::string> word(const std::string &w) {
     return [=](Source *s) {
@@ -177,6 +197,24 @@ void test() {
     parseTest(expr, "*a && *b");
 }
 
+class CSource {
+    int p;
+    Source *s;
+    std::vector<Token> toks;
+public:
+    CSource(Source *s) : p(0), s(s) {}
+    Token &peek() {
+        while (toks.size() <= p) {
+            toks.push_back(token(s));
+        }
+        return toks[p];
+    }
+    void next() {
+        ++p;
+        peek();
+    }
+};
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         test();
@@ -196,7 +234,15 @@ int main(int argc, char *argv[]) {
     fclose(f);
 
     Source s = &buf[0];
-    parseTest(decls, &s);
+    CSource cs = &s;
+    std::vector<Token> vec;
+    try {
+        for (;;) {
+            vec.push_back(cs.peek());
+            cs.next();
+        }
+    } catch (const std::string &) {}
+    //parseTest(decls, &s);
     if (!s.eof()) {
         std::cerr << s.ex2("not eof");
     }
