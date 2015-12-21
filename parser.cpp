@@ -272,19 +272,24 @@ Parser<PExpr *> pxprs[] = {
     /* 0*/ eval(pxpr(1), many(char1(',') >> apply(pbopr(","), pxpr(1)))),
     /* 1*/ pxpr(2),
     /* 2*/ pxpr(3),
-    /* 3*/ pxpr(4),
-    /* 4*/ pxpr(5),
-    /* 5*/ pxpr(6),
-    /* 6*/ pxpr(7),
-    /* 7*/ pxpr(8),
-    /* 8*/ pxpr(9),
-    /* 9*/ pxpr(10),
-    /*10*/ pxpr(11),
-    /*11*/ eval(pxpr(12), many(char1('+') >> apply(pbopr("+"), pxpr(12)) ||
-                               char1('-') >> apply(pbopr("-"), pxpr(12)))),
-    /*12*/ eval(pxpr(13), many(char1('*') >> apply(pbopr("*"), pxpr(13)) ||
-                               char1('/') >> apply(pbopr("/"), pxpr(13)) ||
-                               char1('%') >> apply(pbopr("%"), pxpr(13)))),
+    /* 3*/ eval(pxpr( 4), many(string("||") >> apply(pbopr("||"), pxpr(4)))),
+    /* 4*/ eval(pxpr( 5), many(string("&&") >> apply(pbopr("&&"), pxpr(5)))),
+    /* 5*/ eval(pxpr( 6), many(tryp(char1('|') + nochar('|')) >> apply(pbopr("|"), pxpr(6)))),
+    /* 6*/ eval(pxpr( 7), many(char1('^') >> apply(pbopr("^"), pxpr(7)))),
+    /* 7*/ eval(pxpr( 8), many(tryp(char1('&') + nochar('&')) >> apply(pbopr("&"), pxpr(8)))),
+    /* 8*/ eval(pxpr( 9), many(string("==") >> apply(pbopr("=="), pxpr(9)) ||
+                               string("!=") >> apply(pbopr("!="), pxpr(9)))),
+    /* 9*/ eval(pxpr(10), many(tryp(string("<=")) >> apply(pbopr("<="), pxpr(10)) ||
+                               tryp(string(">=")) >> apply(pbopr(">="), pxpr(10)) ||
+                               char1('<') >> apply(pbopr("<" ), pxpr(10)) ||
+                               char1('>') >> apply(pbopr(">" ), pxpr(10)))),
+    /*10*/ eval(pxpr(11), many(tryp(string("<<")) >> apply(pbopr("<<"), pxpr(11)) ||
+                               tryp(string(">>")) >> apply(pbopr(">>"), pxpr(11)))),
+    /*11*/ eval(pxpr(12), many(char1('+') >> apply(pbopr("+" ), pxpr(12)) ||
+                               char1('-') >> apply(pbopr("-" ), pxpr(12)))),
+    /*12*/ eval(pxpr(13), many(char1('*') >> apply(pbopr("*" ), pxpr(13)) ||
+                               char1('/') >> apply(pbopr("/" ), pxpr(13)) ||
+                               char1('%') >> apply(pbopr("%" ), pxpr(13)))),
     /*13*/ pxpr(14),
     /*14*/ pxpr(15),
     /*15*/ read(char1('(') >> pexpr << char1(')') || pnum || psym),
@@ -301,6 +306,7 @@ void test2() {
     parseTest(pexpr, "(1+2)*3");
     parseTest(pexpr, "1,2+3");
     parseTest(pexpr, "a+b*c");
+    parseTest(pexpr, "a+b*c>3 && d==1|e || f<<1<g&h");
 }
 
 int main(int argc, char *argv[]) {
