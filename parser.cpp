@@ -224,7 +224,7 @@ public:
         return oss.str();
     }
 };
-auto pnum = read<PExpr *>([](Source *s) -> PExpr * { return new PNum(pint(s)); });
+Parser<PExpr *> pnum = [](Source *s) { return new PNum(pint(s)); };
 
 class PBOpr : public PExpr {
     const char *opr;
@@ -257,20 +257,29 @@ Parser<std::function<PExpr *(PExpr *)>> apply(
     return apply<PExpr *, PExpr *, PExpr *>(f, p);
 }
 
-auto pterm = eval(pnum, many(
-       char1('*') >> apply(pbopr("*"), pnum)
-    || char1('/') >> apply(pbopr("/"), pnum)
-));
-auto pexpr = eval(pterm, many(
-       char1('+') >> apply(pbopr("+"), pterm)
-    || char1('-') >> apply(pbopr("-"), pterm)
-));
+Parser<PExpr *> pxpr(int n);
+Parser<PExpr *> pexpr = read(pxpr(0));
+
+Parser<PExpr *> pxprs[] = {
+    /* 0*/ eval(pxpr(1), many(char1(',') >> apply(pbopr(","), pxpr(1)))),
+    /* 1*/ eval(pxpr(2), many(char1('+') >> apply(pbopr("+"), pxpr(2)) ||
+                              char1('-') >> apply(pbopr("-"), pxpr(2)))),
+    /* 2*/ eval(pxpr(3), many(char1('*') >> apply(pbopr("*"), pxpr(3)) ||
+                              char1('/') >> apply(pbopr("/"), pxpr(3)) ||
+                              char1('%') >> apply(pbopr("%"), pxpr(3)))),
+    /* 3*/ read(char1('(') >> pexpr << char1(')') || pnum),
+};
+Parser<PExpr *> pxpr(int n) {
+    return [=](Source *s){ return pxprs[n](s); };
+}
 
 void test2() {
     parseTest(pexpr, "123");
     parseTest(pexpr, "1+2");
     parseTest(pexpr, "1 + 2 - 3");
     parseTest(pexpr, "1+2*3");
+    parseTest(pexpr, "(1+2)*3");
+    parseTest(pexpr, "1,2+3");
 }
 
 int main(int argc, char *argv[]) {
