@@ -308,10 +308,29 @@ public:
     }
 };
 
-Parser<PExpr *> pexpr = [](Source *s) { return new PNum(s); };
+class PAdd : public PExpr {
+    PExpr *x, *y;
+public:
+    PAdd(PExpr *x, Source *s) : x(x) {
+        char1('+')(s);
+        y = new PNum(s);
+    }
+    virtual std::string str() const {
+        return x->str() + "+" + y->str();
+    }
+};
+
+Parser<PExpr *> pexpr = [](Source *s) -> PExpr * {
+    auto x = new PNum(s);
+    try {
+        return new PAdd(x, s);
+    } catch (const std::string &) {}
+    return x;
+};
 
 void test2() {
     parseTest(pexpr, "123");
+    parseTest(pexpr, "1+2");
 }
 
 int main(int argc, char *argv[]) {
