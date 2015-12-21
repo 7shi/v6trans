@@ -232,6 +232,7 @@ public:
             toks.push_back(Token(Sym, std::string(start, s - start)));
             return true;
         } else if (*s == '"' || *s == '\'') {
+            auto t = *s == '"' ? Str : Char;
             char ch = *(s++);
             for (;; ++s) {
                 if (!*s) return false;
@@ -242,7 +243,7 @@ public:
                     if (!*++s) return false;
                 }
             }
-            toks.push_back(Token(Str, std::string(start, s - start)));
+            toks.push_back(Token(t, std::string(start, s - start)));
             return true;
         } else {
             switch (*(s++)) {
