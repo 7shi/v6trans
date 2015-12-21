@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <vector>
 #include <utility>
+#include <numeric>
 #include "parsecpp.h"
 
 Parser<std::string> comment = [](Source *s) {
@@ -285,6 +286,13 @@ public:
     }
 };
 
+Parser<int> pint = [](Source *s) {
+    std::istringstream iss(num(s));
+    int n;
+    iss >> n;
+    return n;
+};
+
 class PExpr {
 public:
     virtual ~PExpr() {}
@@ -297,40 +305,60 @@ std::ostream &operator<<(std::ostream &cout, PExpr *x) {
 class PNum : public PExpr {
     int n;
 public:
-    PNum(Source *s) {
-        std::istringstream iss(num(s));
-        iss >> n;
-    }
+    PNum(int n) : n(n) {}
     virtual std::string str() const {
         std::ostringstream oss;
         oss << n;
         return oss.str();
     }
 };
+auto pnum = read<PExpr *>([](Source *s) -> PExpr * { return new PNum(pint(s)); });
 
-class PAdd : public PExpr {
+class PBOpr : public PExpr {
+    const char *opr;
     PExpr *x, *y;
 public:
-    PAdd(PExpr *x, Source *s) : x(x) {
-        char1('+')(s);
-        y = new PNum(s);
-    }
+    PBOpr(const char *opr, PExpr *x, PExpr *y) : opr(opr), x(x), y(y) {}
     virtual std::string str() const {
-        return x->str() + "+" + y->str();
+        return "(" + x->str() + opr + y->str() + ")";
     }
 };
+std::function<PExpr *(PExpr *, PExpr *)> pbopr(const char *opr) {
+    return [=](PExpr *x, PExpr *y) -> PExpr * {
+        return new PBOpr(opr, y, x);
+    };
+}
 
-Parser<PExpr *> pexpr = [](Source *s) -> PExpr * {
-    auto x = new PNum(s);
-    try {
-        return new PAdd(x, s);
-    } catch (const std::string &) {}
-    return x;
-};
+Parser<PExpr *> eval(
+        const Parser<PExpr *> &m,
+        const Parser<std::list<std::function<PExpr *(PExpr *)>>> &fs) {
+    return [=](Source *s) {
+        auto x = m(s);
+        auto xs = fs(s);
+        return std::accumulate(xs.begin(), xs.end(), x,
+            [](PExpr *x, const std::function<PExpr *(PExpr *)> &f) { return f(x); });
+    };
+}
+
+Parser<std::function<PExpr *(PExpr *)>> apply(
+        const std::function<PExpr *(PExpr *, PExpr *)> &f, const Parser<PExpr *> &p) {
+    return apply<PExpr *, PExpr *, PExpr *>(f, p);
+}
+
+auto pterm = eval(pnum, many(
+       char1('*') >> apply(pbopr("*"), pnum)
+    || char1('/') >> apply(pbopr("/"), pnum)
+));
+auto pexpr = eval(pterm, many(
+       char1('+') >> apply(pbopr("+"), pterm)
+    || char1('-') >> apply(pbopr("-"), pterm)
+));
 
 void test2() {
     parseTest(pexpr, "123");
     parseTest(pexpr, "1+2");
+    parseTest(pexpr, "1 + 2 - 3");
+    parseTest(pexpr, "1+2*3");
 }
 
 int main(int argc, char *argv[]) {
