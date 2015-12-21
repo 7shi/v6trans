@@ -243,51 +243,35 @@ public:
         return "(" + x->str() + opr + y->str() + ")";
     }
 };
-std::function<PExpr *(PExpr *, PExpr *)> pbopr(const std::string &opr) {
-    return [=](PExpr *x, PExpr *y) -> PExpr * {
-        return new PBOpr(opr, y, x);
-    };
-}
-
-Parser<PExpr *> eval(
-        const Parser<PExpr *> &m,
-        const Parser<std::list<std::function<PExpr *(PExpr *)>>> &fs) {
-    return [=](Source *s) {
-        auto x = m(s);
-        auto xs = fs(s);
-        return std::accumulate(xs.begin(), xs.end(), x,
-            [](PExpr *x, const std::function<PExpr *(PExpr *)> &f) { return f(x); });
-    };
-}
-
-Parser<std::function<PExpr *(PExpr *)>> opr2(
-        const Parser<std::string> &opr, const Parser<PExpr *> &p) {
-    return [=](Source *s) {
-        return apply<PExpr *, PExpr *, PExpr *>(pbopr(opr(s)), p)(s);
-    };
-}
-Parser<std::function<PExpr *(PExpr *)>> opr2(
-        const Parser<char> &opr, const Parser<PExpr *> &p) {
-    return opr2(1 * opr, p);
-}
 
 Parser<PExpr *> pxpr(int n);
 Parser<PExpr *> pexpr = read(pxpr(0));
-
+Parser<PExpr *> evalMany(int n, const Parser<std::string> &opr) {
+    return [=](Source *s) {
+        auto ret = pxpr(n)(s);
+        try {
+            for (;;) {
+                auto o = opr(s);
+                ret = new PBOpr(o, ret, pxpr(n)(s));
+            }
+        } catch (const std::string &) {}
+        return ret;
+    };
+}
 Parser<PExpr *> pxprs[] = {
-    /* 0*/ eval(pxpr( 1), many(opr2(string(","), pxpr(1)))),
+    /* 0*/ evalMany( 1, string(",")),
     /* 1*/ pxpr(2),
     /* 2*/ pxpr(3),
-    /* 3*/ eval(pxpr( 4), many(opr2(string("||"), pxpr(4)))),
-    /* 4*/ eval(pxpr( 5), many(opr2(string("&&"), pxpr(5)))),
-    /* 5*/ eval(pxpr( 6), many(opr2(tryp(char1('|') + nochar('|')), pxpr(6)))),
-    /* 6*/ eval(pxpr( 7), many(opr2(string("^"), pxpr(7)))),
-    /* 7*/ eval(pxpr( 8), many(opr2(tryp(char1('&') + nochar('&')), pxpr(8)))),
-    /* 8*/ eval(pxpr( 9), many(opr2(stringOf({"==", "!="}), pxpr(9)))),
-    /* 9*/ eval(pxpr(10), many(opr2(stringOf({"<=", ">=", "<", ">"}), pxpr(10)))),
-    /*10*/ eval(pxpr(11), many(opr2(stringOf({"<<", ">>"}), pxpr(11)))),
-    /*11*/ eval(pxpr(12), many(opr2(oneOf("+-" ), pxpr(12)))),
-    /*12*/ eval(pxpr(13), many(opr2(oneOf("*/%"), pxpr(13)))),
+    /* 3*/ evalMany( 4, string("||")),
+    /* 4*/ evalMany( 5, string("&&")),
+    /* 5*/ evalMany( 6, tryp(char1('|') + nochar('|'))),
+    /* 6*/ evalMany( 7, string("^")),
+    /* 7*/ evalMany( 8, tryp(char1('&') + nochar('&'))),
+    /* 8*/ evalMany( 9, stringOf({"==", "!="})),
+    /* 9*/ evalMany(10, stringOf({"<=", ">=", "<", ">"})),
+    /*10*/ evalMany(11, stringOf({"<<", ">>"})),
+    /*11*/ evalMany(12, oneOf("+-" ) * 1),
+    /*12*/ evalMany(13, oneOf("*/%") * 1),
     /*13*/ pxpr(14),
     /*14*/ pxpr(15),
     /*15*/ read(char1('(') >> pexpr << char1(')') || pnum || psym),
