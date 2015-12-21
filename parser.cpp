@@ -235,35 +235,35 @@ public:
 Parser<PExpr *> psym = [](Source *s) { return new PSym(sym(s)); };
 
 class PBOpr : public PExpr {
-    const std::string opr;
+    const std::string op;
     PExpr *x, *y;
 public:
-    PBOpr(const std::string &opr, PExpr *x, PExpr *y) : opr(opr), x(x), y(y) {}
+    PBOpr(const std::string &op, PExpr *x, PExpr *y) : op(op), x(x), y(y) {}
     virtual std::string str() const {
-        return "(" + x->str() + opr + y->str() + ")";
+        return "(" + x->str() + op + y->str() + ")";
     }
 };
 
 Parser<PExpr *> pxpr(int n);
 Parser<PExpr *> pexpr = read(pxpr(0));
-Parser<PExpr *> evalMany(int n, const Parser<std::string> &opr) {
+Parser<PExpr *> evalMany(int n, const Parser<std::string> &op) {
     return [=](Source *s) {
         auto ret = pxpr(n)(s);
         try {
             for (;;) {
-                auto o = opr(s);
+                auto o = op(s);
                 ret = new PBOpr(o, ret, pxpr(n)(s));
             }
         } catch (const std::string &) {}
         return ret;
     };
 }
-Parser<PExpr *> evalRec(int n, const Parser<std::string> &opr) {
+Parser<PExpr *> evalRec(int n, const Parser<std::string> &op) {
     return [=](Source *s) {
         auto ret = pxpr(n)(s);
         try {
-            auto o = opr(s);
-            ret = new PBOpr(o, ret, evalRec(n, opr)(s));
+            auto o = op(s);
+            ret = new PBOpr(o, ret, evalRec(n, op)(s));
         } catch (const std::string &) {}
         return ret;
     };
