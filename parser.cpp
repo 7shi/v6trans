@@ -226,6 +226,14 @@ public:
 };
 Parser<PExpr *> pnum = [](Source *s) { return new PNum(pint(s)); };
 
+class PSym : public PExpr {
+    std::string sym;
+public:
+    PSym(const std::string &sym) : sym(sym) {}
+    virtual std::string str() const { return sym; }
+};
+Parser<PExpr *> psym = [](Source *s) { return new PSym(sym(s)); };
+
 class PBOpr : public PExpr {
     const char *opr;
     PExpr *x, *y;
@@ -267,7 +275,7 @@ Parser<PExpr *> pxprs[] = {
     /* 2*/ eval(pxpr(3), many(char1('*') >> apply(pbopr("*"), pxpr(3)) ||
                               char1('/') >> apply(pbopr("/"), pxpr(3)) ||
                               char1('%') >> apply(pbopr("%"), pxpr(3)))),
-    /* 3*/ read(char1('(') >> pexpr << char1(')') || pnum),
+    /* 3*/ read(char1('(') >> pexpr << char1(')') || pnum || psym),
 };
 Parser<PExpr *> pxpr(int n) {
     return [=](Source *s){ return pxprs[n](s); };
@@ -280,6 +288,7 @@ void test2() {
     parseTest(pexpr, "1+2*3");
     parseTest(pexpr, "(1+2)*3");
     parseTest(pexpr, "1,2+3");
+    parseTest(pexpr, "a+b*c");
 }
 
 int main(int argc, char *argv[]) {
