@@ -270,12 +270,24 @@ Parser<PExpr *> pexpr = read(pxpr(0));
 
 Parser<PExpr *> pxprs[] = {
     /* 0*/ eval(pxpr(1), many(char1(',') >> apply(pbopr(","), pxpr(1)))),
-    /* 1*/ eval(pxpr(2), many(char1('+') >> apply(pbopr("+"), pxpr(2)) ||
-                              char1('-') >> apply(pbopr("-"), pxpr(2)))),
-    /* 2*/ eval(pxpr(3), many(char1('*') >> apply(pbopr("*"), pxpr(3)) ||
-                              char1('/') >> apply(pbopr("/"), pxpr(3)) ||
-                              char1('%') >> apply(pbopr("%"), pxpr(3)))),
-    /* 3*/ read(char1('(') >> pexpr << char1(')') || pnum || psym),
+    /* 1*/ pxpr(2),
+    /* 2*/ pxpr(3),
+    /* 3*/ pxpr(4),
+    /* 4*/ pxpr(5),
+    /* 5*/ pxpr(6),
+    /* 6*/ pxpr(7),
+    /* 7*/ pxpr(8),
+    /* 8*/ pxpr(9),
+    /* 9*/ pxpr(10),
+    /*10*/ pxpr(11),
+    /*11*/ eval(pxpr(12), many(char1('+') >> apply(pbopr("+"), pxpr(12)) ||
+                               char1('-') >> apply(pbopr("-"), pxpr(12)))),
+    /*12*/ eval(pxpr(13), many(char1('*') >> apply(pbopr("*"), pxpr(13)) ||
+                               char1('/') >> apply(pbopr("/"), pxpr(13)) ||
+                               char1('%') >> apply(pbopr("%"), pxpr(13)))),
+    /*13*/ pxpr(14),
+    /*14*/ pxpr(15),
+    /*15*/ read(char1('(') >> pexpr << char1(')') || pnum || psym),
 };
 Parser<PExpr *> pxpr(int n) {
     return [=](Source *s){ return pxprs[n](s); };
