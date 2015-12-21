@@ -234,11 +234,20 @@ public:
 };
 Parser<PExpr *> psym = [](Source *s) { return new PSym(sym(s)); };
 
-class PBOpr : public PExpr {
-    const std::string op;
-    PExpr *x, *y;
+class PUOpr : public PExpr {
+protected:
+    std::string op;
+    PExpr *x;
 public:
-    PBOpr(const std::string &op, PExpr *x, PExpr *y) : op(op), x(x), y(y) {}
+    PUOpr(const std::string &op, PExpr *x) : op(op), x(x) {}
+    virtual std::string str() const {
+        return "(" + op + x->str() + ")";
+    }
+};
+class PBOpr : public PUOpr {
+    PExpr *y;
+public:
+    PBOpr(const std::string &op, PExpr *x, PExpr *y) : PUOpr(op, x), y(y) {}
     virtual std::string str() const {
         return "(" + x->str() + op + y->str() + ")";
     }
@@ -268,6 +277,15 @@ Parser<PExpr *> evalRec(int n, const Parser<std::string> &op) {
         return ret;
     };
 }
+Parser<PExpr *> evalPre(int n, const Parser<std::string> &op) {
+    return [=](Source *s) -> PExpr * {
+        try {
+            auto o = op(s);
+            return new PUOpr(o, evalPre(n, op)(s));
+        } catch (const std::string &) {}
+        return pxpr(n)(s);
+    };
+}
 Parser<PExpr *> pxprs[] = {
     /* 0*/ evalMany( 1, string(",")),
     /* 1*/ evalRec ( 2, char1('=') + opt(oneOf("+-*/%&^|") * 1 || stringOf({"<<", ">>"}))),
@@ -282,7 +300,7 @@ Parser<PExpr *> pxprs[] = {
     /*10*/ evalMany(11, stringOf({"<<", ">>"})),
     /*11*/ evalMany(12, oneOf("+-" ) * 1),
     /*12*/ evalMany(13, oneOf("*/%") * 1),
-    /*13*/ pxpr(14),
+    /*13*/ evalPre (14, stringOf({"++", "--"}) || oneOf("+-!~*&") * 1),
     /*14*/ pxpr(15),
     /*15*/ read(char1('(') >> pexpr << char1(')') || pnum || psym),
 };
@@ -302,6 +320,7 @@ void test2() {
     parseTest(pexpr, "a=b=1");
     parseTest(pexpr, "a=1,b=2");
     parseTest(pexpr, "a=<<b=+2");
+    parseTest(pexpr, "-*++--a");
 }
 
 int main(int argc, char *argv[]) {
