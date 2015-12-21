@@ -198,94 +198,6 @@ void test() {
     parseTest(expr, "*a && *b");
 }
 
-class CSource {
-    const char *s;
-    std::vector<Token> toks;
-public:
-    CSource(const char *s) : s(s) {}
-private:
-    void skip() {
-        for (;;) {
-            for (; *s && *s <= ' '; ++s);
-            if (s[0] != '/' || s[1] != '*') break;
-            for (s += 2; *s; ++s) {
-                if (s[0] == '*' && s[1] == '/') {
-                    s += 2;
-                    break;
-                }
-            }
-        }
-    }
-public:
-    const std::vector<Token> &tokens() const {
-        return toks;
-    }
-    bool read() {
-        skip();
-        if (!*s) return false;
-        auto start = s;
-        if (isDigit(*s)) {
-            for (++s; *s && isDigit(*s); ++s);
-            toks.push_back(Token(Num, std::string(start, s - start)));
-            return true;
-        } else if (isLetter(*s)) {
-            for (++s; *s && isLetter(*s) || isDigit(*s); ++s);
-            toks.push_back(Token(Sym, std::string(start, s - start)));
-            return true;
-        } else if (*s == '"' || *s == '\'') {
-            auto t = *s == '"' ? Str : Char;
-            char ch = *(s++);
-            for (;; ++s) {
-                if (!*s) return false;
-                if (*s == ch) {
-                    ++s;
-                    break;
-                } else if (*s == '\\') {
-                    if (!*++s) return false;
-                }
-            }
-            toks.push_back(Token(t, std::string(start, s - start)));
-            return true;
-        } else {
-            switch (*(s++)) {
-            case '+':
-            case '-':
-            case '&':
-            case '|':
-                if (*s == *start) ++s;
-                break;
-            case '<':
-            case '>':
-                if (*s == *start || *s == '=') ++s;
-                break;
-            case '!':
-                if (*s == '=') ++s;
-                break;
-            case '=':
-                switch (*s) {
-                case '^':
-                case '=':
-                case '+':
-                case '-':
-                case '*':
-                case '/':
-                case '&':
-                case '|':
-                case '%':
-                    ++s;
-                    break;
-                case '<':
-                case '>':
-                    if (s[0] == s[1]) s += 2;
-                    break;
-                }
-            }
-            toks.push_back(Token(Op, std::string(start, s - start)));
-            return true;
-        }
-    }
-};
-
 Parser<int> pint = [](Source *s) {
     std::istringstream iss(num(s));
     int n;
@@ -379,18 +291,9 @@ int main(int argc, char *argv[]) {
     fread(&buf[0], 1, size, f);
     fclose(f);
 
-    //Source s = &buf[0];
-    CSource cs = &buf[0];
-    while (cs.read());
-    auto tokens = cs.tokens();
-    std::cerr << "[";
-    for (auto it = tokens.begin(); it != tokens.end(); ++it) {
-        if (it != tokens.begin()) std::cerr << ",";
-        std::cerr << *it;
+    Source s = &buf[0];
+    parseTest(decls, &s);
+    if (!s.eof()) {
+        std::cerr << s.ex2("not eof");
     }
-    std::cerr << "]" << std::endl;
-    //parseTest(decls, &s);
-    //if (!s.eof()) {
-    //    std::cerr << s.ex2("not eof");
-    //}
 }
