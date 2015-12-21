@@ -285,9 +285,38 @@ public:
     }
 };
 
+class PExpr {
+public:
+    virtual ~PExpr() {}
+    virtual std::string str() const = 0;
+};
+std::ostream &operator<<(std::ostream &cout, PExpr *x) {
+    return cout << x->str();
+}
+
+class PNum : public PExpr {
+    int n;
+public:
+    PNum(Source *s) {
+        std::istringstream iss(num(s));
+        iss >> n;
+    }
+    virtual std::string str() const {
+        std::ostringstream oss;
+        oss << n;
+        return oss.str();
+    }
+};
+
+Parser<PExpr *> pexpr = [](Source *s) { return new PNum(s); };
+
+void test2() {
+    parseTest(pexpr, "123");
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        test();
+        test2();
         //std::cerr << "usage: " << argv[0] << " source.c" << std::endl;
         return 1;
     }
