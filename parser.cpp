@@ -68,25 +68,6 @@ Parser<std::string> lstr = [](Source *s) {
 };
 auto lchar = char1('\'') + opt(char1('\\')) + anyChar + char1('\'');
 
-auto ops = 
-       char1('>') + opt(oneOf(">="))
-    || char1('<') + opt(oneOf("<="))
-    || char1('=') + opt(stringOf({">>", "<<", "^", "=", "+", "-", "*", "/", "&", "|", "%"}))
-    || stringOf({"++", "--", "&&", "||", "!="}) || anyChar + right("");
-enum TokenType { Num, Sym, Str, Char, Op };
-using Token = std::pair<TokenType, std::string>;
-std::ostream &operator<<(std::ostream &cout, const Token &t) {
-    cout << "(" << t.first << "," << t.second << ")";
-}
-Parser<Token> token = [](Source *s) {
-    spcs(s);
-    try { return std::make_pair(Num , num  (s)); } catch (std::string &) {}
-    try { return std::make_pair(Sym , sym  (s)); } catch (std::string &) {}
-    try { return std::make_pair(Str , lstr (s)); } catch (std::string &) {}
-    try { return std::make_pair(Char, lchar(s)); } catch (std::string &) {}
-    return std::make_pair(Op, ops(s));
-};
-
 Parser<std::string> word(const std::string &w) {
     return [=](Source *s) {
         auto bak = *s;
