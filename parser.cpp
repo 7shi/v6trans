@@ -258,9 +258,19 @@ Parser<PExpr *> evalMany(int n, const Parser<std::string> &opr) {
         return ret;
     };
 }
+Parser<PExpr *> evalRec(int n, const Parser<std::string> &opr) {
+    return [=](Source *s) {
+        auto ret = pxpr(n)(s);
+        try {
+            auto o = opr(s);
+            ret = new PBOpr(o, ret, evalRec(n, opr)(s));
+        } catch (const std::string &) {}
+        return ret;
+    };
+}
 Parser<PExpr *> pxprs[] = {
     /* 0*/ evalMany( 1, string(",")),
-    /* 1*/ pxpr(2),
+    /* 1*/ evalRec ( 2, char1('=') + opt(oneOf("+-*/%&^|") * 1 || stringOf({"<<", ">>"}))),
     /* 2*/ pxpr(3),
     /* 3*/ evalMany( 4, string("||")),
     /* 4*/ evalMany( 5, string("&&")),
@@ -289,6 +299,9 @@ void test2() {
     parseTest(pexpr, "1,2+3");
     parseTest(pexpr, "a+b*c");
     parseTest(pexpr, "a+b*c>3 && d==1|e || f<<1<g&h");
+    parseTest(pexpr, "a=b=1");
+    parseTest(pexpr, "a=1,b=2");
+    parseTest(pexpr, "a=<<b=+2");
 }
 
 int main(int argc, char *argv[]) {
