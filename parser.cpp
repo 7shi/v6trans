@@ -226,11 +226,22 @@ public:
     }
 };
 class POp2 : public POp1 {
+protected:
     PExpr *y;
 public:
     POp2(const std::string &op, PExpr *x, PExpr *y) : POp1(op, x), y(y) {}
     virtual std::string str() const {
         return "(" + x->str() + op + y->str() + ")";
+    }
+};
+class POp3 : public POp2 {
+    std::string op2;
+    PExpr *z;
+public:
+    POp3(const std::string &op, const std::string &op2,
+        PExpr *x, PExpr *y, PExpr *z) : POp2(op, x, y), op2(op2), z(z) {}
+    virtual std::string str() const {
+        return "(" + x->str() + op + y->str() + op2 + z->str() + ")";
     }
 };
 
@@ -270,7 +281,14 @@ Parser<PExpr *> evalPre(int n, const Parser<std::string> &op) {
 Parser<PExpr *> pxprs[] = {
     /* 0*/ evalMany( 1, string(",")),
     /* 1*/ evalRec ( 2, char1('=') + opt(oneOf("+-*/%&^|") * 1 || stringOf({"<<", ">>"}))),
-    /* 2*/ pxpr(3),
+    /* 2*/ [=](Source *s) -> PExpr * {
+        auto ret = pxpr(3)(s);
+        try {
+            auto cond = (char1('?') >> pxpr(3) << char1(':'))(s);
+            return new POp3("?", ":", ret, cond, pxpr(3)(s));
+        } catch (const std::string &) {}
+        return ret;
+    },
     /* 3*/ evalMany( 4, string("||")),
     /* 4*/ evalMany( 5, string("&&")),
     /* 5*/ evalMany( 6, tryp(char1('|') + nochar('|'))),
@@ -302,6 +320,7 @@ void test2() {
     parseTest(pexpr, "a=1,b=2");
     parseTest(pexpr, "a=<<b=+2");
     parseTest(pexpr, "-*++--a");
+    parseTest(pexpr, "a==1?b+1:++c");
 }
 
 int main(int argc, char *argv[]) {
